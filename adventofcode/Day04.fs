@@ -48,3 +48,30 @@ module Day04 =
         getInput InputFile
         |> Array.filter isRealRoom
         |> Array.sumBy getSectorId
+
+    let rotate (c: char) n =
+        let abc = ['a' .. 'z']
+        if System.Char.IsLetter c
+        then
+            let index = int c - 97
+            let index' = (index + n) % abc.Length
+            abc.[index']
+        else ' '
+
+    let rotateBySectorId (s: string) =
+        let sectorId = getSectorId s
+        let word =
+            s.ToCharArray()
+            |> Array.takeWhile (System.Char.IsNumber >> not)
+            |> Array.map (fun c -> rotate c sectorId)
+            |> Array.fold (fun s c -> s + string c) ""
+        (word, sectorId)
+
+    let day04Part2() =
+        let realRooms =
+            getInput InputFile
+            |> Array.filter isRealRoom
+        realRooms
+        |> Array.map rotateBySectorId
+        |> Array.filter (fun (w, i) -> w.Contains("northpole"))
+        
