@@ -10,8 +10,7 @@ module Day06 =
         |> System.IO.File.ReadAllLines
         |> Array.map (fun s -> s.ToCharArray())
 
-    let day06() =
-        let lines = getInput InputFile
+    let decode f (lines: char [] []) =
         let length = lines.[0].Length
 
         let word =
@@ -21,7 +20,17 @@ module Day06 =
                         lines
                         |> Array.map (fun l -> l.[p])
                         |> Array.groupBy id
-                        |> Array.maxBy (fun (_, g) -> Array.length g)
+                        |> f (fun (_, g) -> Array.length g)
                     yield (fst maxGroup)
             }
         word |> Seq.fold (fun s c -> s + string c) ""
+
+    let day06() =
+        let lines = getInput InputFile
+        let word = decode Array.maxBy lines
+        word
+
+    let day06Part2() =
+        let lines = getInput InputFile
+        let word = decode Array.minBy lines
+        word
