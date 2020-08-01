@@ -70,3 +70,12 @@ module Day08 =
                     if display.[r, c] = '#' then yield 1 else yield 0
         }
         |> Seq.sum
+
+    let day08Part2() =
+        let h = 6
+        let w = 50
+        let display = Array2D.create h w '.'
+        getInstructions InputFile |> Array.iter (apply display)
+        for r in 0 .. h - 1 do
+            let row = display.[r, *] |> Array.fold (fun s c -> s + string c) ""
+            printfn "%s" row
