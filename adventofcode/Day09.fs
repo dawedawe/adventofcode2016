@@ -38,3 +38,34 @@ module Day09 =
         let input = System.IO.File.ReadAllText(InputFile)
         let decompressed = decompress input
         decompressed.Length
+
+    let decompressPart2 (s: string) =
+
+        let rec helper (todo: string) (sofar: int64) =
+            match todo with
+            | "" -> sofar
+            | _ when not (todo.StartsWith("(")) -> helper todo.[1..] (sofar + 1L)
+            | _ when todo.StartsWith("(") ->
+                let openBracket = todo.IndexOf('(')
+                let closeBracket = todo.IndexOf(')')
+                let marker = todo.Substring(openBracket + 1, closeBracket - openBracket - 1)
+                let xIdx = marker.IndexOf('x')
+                let toTake = marker.Substring(0, xIdx) |> int
+                let times = marker.Substring(xIdx + 1) |> int
+                let part = todo.[(closeBracket + 1)..(closeBracket + 1 + toTake - 1)] |> repeat times
+                if part.Contains("(") then
+                    let sofar' = sofar
+                    let todo' = part + todo.[(closeBracket + 1 + toTake)..]
+                    helper todo' sofar'
+                else
+                    let sofar' = sofar + (int64 part.Length)
+                    let todo' = todo.[(closeBracket + 1 + toTake)..]
+                    helper todo' sofar'
+            | _ -> failwith "bad state"
+
+        helper s 0L
+
+    let day09Part2() =
+        let input = System.IO.File.ReadAllText(InputFile)
+        let decompressed = decompressPart2 input
+        decompressed
