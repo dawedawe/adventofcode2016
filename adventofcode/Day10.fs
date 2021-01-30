@@ -5,29 +5,45 @@ module Day10 =
     [<Literal>]
     let InputFile = "Day10Input.txt"
 
-    type Bot =
-        { Nr: int
+    type BotOrOutput =
+        | Bot
+        | Output
+
+    type ChipCarrier =
+        { Id: int * BotOrOutput
           Chip1: int option
           Chip2: int option }
 
-    module Bot =
+    module ChipCarrier =
 
-        let create nr chip =
-            { Nr = nr
+        let create id chip =
+            { Id = id
               Chip1 = Some chip
               Chip2 = None }
 
-        let (|BotWithNoChip|BotWithOneChip|BotWithTwoChips|) bot =
-            match bot with
-            | { Nr = _; Chip1 = None; Chip2 = None } -> BotWithNoChip bot
-            | { Nr = _; Chip1 = Some _; Chip2 = None } -> BotWithOneChip bot
-            | { Nr = _
+        let (|BotWithNoChip|BotWithOneChip|BotWithTwoChips|EmptyOutput|FilledOutput|) chipCarrier =
+            match chipCarrier with
+            | { Id = (_, Output)
+                Chip1 = None
+                Chip2 = None } -> EmptyOutput chipCarrier
+            | { Id = (_, Output)
                 Chip1 = Some _
-                Chip2 = Some _ } -> BotWithTwoChips bot
-            | _ -> failwith "illegal bot state"
+                Chip2 = None } -> FilledOutput chipCarrier
+            | { Id = (_, Bot)
+                Chip1 = None
+                Chip2 = None } -> BotWithNoChip chipCarrier
+            | { Id = (_, Bot)
+                Chip1 = Some _
+                Chip2 = None } -> BotWithOneChip chipCarrier
+            | { Id = (_, Bot)
+                Chip1 = Some _
+                Chip2 = Some _ } -> BotWithTwoChips chipCarrier
+            | _ -> failwith "illegal ChipCarrier state"
 
-        let addChip bot chip =
-            match bot with
+        let addChip chipCarrier chip =
+            match chipCarrier with
+            | EmptyOutput o -> { o with Chip1 = Some chip }
+            | FilledOutput o -> failwith (sprintf "trying to add to filled output %d" (fst o.Id))
             | BotWithNoChip bot -> { bot with Chip1 = Some chip }
             | BotWithOneChip bot ->
                 { bot with
@@ -37,7 +53,7 @@ module Day10 =
 
         let hasChips bot chip1 chip2 =
             match bot with
-            | { Nr = _
+            | { Id = _
                 Chip1 = Some c1
                 Chip2 = Some c2 } when c1 = chip1 && c2 = chip2 -> true
             | _ -> false
@@ -53,68 +69,117 @@ module Day10 =
 
     let parseGiveLine (s: string) =
         let words = s.Split(' ')
-        int words.[1], int words.[6], int words.[11]
+
+        let lowTargetType =
+            if words.[5] = "bot" then
+                Bot
+            else
+                Output
+
+        let highTargetType =
+            if words.[10] = "bot" then
+                Bot
+            else
+                Output
+
+        int words.[1], lowTargetType, int words.[6], highTargetType, int words.[11]
 
     let init lines =
         let (initLines, ruleLines) =
             lines
             |> Array.partition (fun (s: string) -> s.StartsWith("value "))
 
-        let helper (bots: Map<int, Bot>) initLine =
+        let helper (bots: Map<(int * BotOrOutput), ChipCarrier>) initLine =
             let (v, botNr) = parseInitLine initLine
-            let entry = Map.tryFind botNr bots
+            let entry = Map.tryFind (botNr, Bot) bots
 
             let bot =
                 match entry with
-                | Some b -> Bot.addChip b v
-                | None -> Bot.create botNr v
+                | Some b -> ChipCarrier.addChip b v
+                | None -> ChipCarrier.create (botNr, Bot) v
 
-            Map.add botNr bot bots
+            Map.add (botNr, Bot) bot bots
 
         let initState = Array.fold helper Map.empty initLines
         (initState, ruleLines)
 
-    let passChip botNr chip (bots: Map<int, Bot>) =
-        let entry = Map.tryFind botNr bots
+    let passChip botNr chip t (chipCarriers: Map<int * BotOrOutput, ChipCarrier>) =
+        let entry = Map.tryFind (botNr, t) chipCarriers
 
         let bot =
             match entry with
-            | Some b -> Bot.addChip b chip
-            | None -> Bot.create botNr chip
+            | Some b -> ChipCarrier.addChip b chip
+            | None -> ChipCarrier.create (botNr, t) chip
 
-        Map.add botNr bot bots
+        Map.add (botNr, t) bot chipCarriers
 
-    let rec step (lines: string []) (bots: Map<int, Bot>) =
+    let rec step (lines: string []) (chipCarriers: Map<(int * BotOrOutput), ChipCarrier>) =
         let responsibleBot =
-            bots
-            |> Map.tryFindKey (fun _ v -> Bot.hasChips v 17 61)
+            chipCarriers
+            |> Map.tryFindKey (fun _ v -> ChipCarrier.hasChips v 17 61)
 
         match responsibleBot with
-        | Some nr -> nr
+        | Some (nr, _) -> nr
         | None ->
             let rules = lines |> Array.map parseGiveLine
 
             let bot =
-                bots
-                |> Map.filter (fun _ v -> Bot.isFullyChipped v)
+                chipCarriers
+                |> Map.filter (fun _ v -> ChipCarrier.isFullyChipped v)
                 |> Map.toArray
                 |> Array.map snd
                 |> Array.head
 
-            let (_, lowTarg, highTarg) =
-                Array.find (fun (b, _, _) -> b = bot.Nr) rules
+            let (_, lowType, lowTarg, highType, highTarg) =
+                Array.find (fun (b, _, _, _, _) -> b = fst bot.Id) rules
 
-            bots
-            |> passChip lowTarg bot.Chip1.Value
-            |> passChip highTarg bot.Chip2.Value
+            chipCarriers
+            |> passChip lowTarg bot.Chip1.Value lowType
+            |> passChip highTarg bot.Chip2.Value highType
             |> Map.add
-                bot.Nr
-                { Nr = bot.Nr
+                bot.Id
+                { Id = bot.Id
                   Chip1 = None
                   Chip2 = None }
             |> step lines
 
     let day10 () =
         let lines = InputFile |> System.IO.File.ReadAllLines
-        let (bots, ruleLines) = init lines
-        step ruleLines bots
+        let (chipCarriers, ruleLines) = init lines
+        step ruleLines chipCarriers
+
+    let rec stepPart2 rules (chipCarriers: Map<int * BotOrOutput, ChipCarrier>) =
+        let outputs012 =
+            chipCarriers
+            |> Map.filter
+                (fun k v -> (k = (0, Output) || k = (1, Output) || k = (2, Output)) && v.Chip1.IsSome)
+
+        if outputs012.Count = 3 then
+            outputs012
+            |> Map.toArray
+            |> Array.map (snd >> fun x -> x.Chip1.Value)
+            |> Array.fold (*) 1
+        else
+            let bot =
+                chipCarriers
+                |> Map.filter (fun _ v -> ChipCarrier.isFullyChipped v)
+                |> Map.toArray
+                |> Array.map snd
+                |> Array.head
+
+            let matchingRule, restOfRules =
+                Array.partition (fun (b, _, _, _, _) -> b = (fst bot.Id)) rules
+
+            let (_, lowType, lowTarg, highType, highTarg) = Array.head matchingRule
+
+            chipCarriers
+            |> passChip lowTarg bot.Chip1.Value lowType
+            |> passChip highTarg bot.Chip2.Value highType
+            |> Map.remove bot.Id
+            |> stepPart2 restOfRules
+
+    let day10Part2 () =
+        let lines = InputFile |> System.IO.File.ReadAllLines
+        let (chipCarriers, ruleLines) = init lines
+        let rules = ruleLines |> Array.map parseGiveLine
+        stepPart2 rules chipCarriers
