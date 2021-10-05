@@ -365,3 +365,28 @@ module Day11 =
         match goalPath with
         | Some p -> p.States.Length - 1
         | None -> -1
+
+    let day11Part2 () =
+        let floors =
+            System.IO.File.ReadAllLines InputFile
+            |> Array.map parseLine
+
+        let part2Chips =
+            Set.ofList [ Chip.Create "elerium"
+                         Chip.Create "dilithium" ]
+
+        let part2Generators =
+            Set.ofList [ Generator.Create "elerium"
+                         Generator.Create "dilithium" ]
+
+        floors.[0] <-
+            { Chips = Set.union floors.[0].Chips part2Chips
+              Generators = Set.union floors.[0].Generators part2Generators }
+
+        let state = { ElevatorLevel = 0; Floors = floors }
+
+        let goalPath = aStar state
+
+        match goalPath with
+        | Some p -> p.States.Length - 1
+        | None -> -1
