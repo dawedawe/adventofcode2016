@@ -30,6 +30,14 @@ module Day12 =
                      ('b', 0)
                      ('c', 0)
                      ('d', 0) |] |> Map.ofArray }
+        static member CreatePart2() =
+            { Ip = 0
+              Registers =
+                  [| ('a', 0)
+                     ('b', 0)
+                     ('c', 1)
+                     ('d', 0) |] |> Map.ofArray }
+
 
     let parseLine (s: string) =
         let parts = s.Split(' ')
@@ -78,4 +86,12 @@ module Day12 =
             |> System.IO.File.ReadAllLines
             |> Array.map parseLine
         let comp = run prog (Computer.Create())
+        comp.Registers.['a']
+
+    let day12Part2 () =
+        let prog =
+            InputFile
+            |> System.IO.File.ReadAllLines
+            |> Array.map parseLine
+        let comp = run prog (Computer.CreatePart2())
         comp.Registers.['a']
