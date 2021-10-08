@@ -43,6 +43,20 @@ module Day13 =
         neighborPositions
         |> Seq.filter (fun p -> not (List.contains p path) && calcSpace p = '.')
 
+    let getNeighbours2 path =
+        let (x, y) = List.last path
+
+        let neighborPositions =
+            seq {
+                if x > 0 then yield (x - 1, y)
+                yield (x + 1, y)
+                if y > 0 then yield (x, y - 1)
+                yield (x, y + 1)
+            }
+
+        neighborPositions
+        |> Seq.filter (fun p -> calcSpace p = '.')
+
     let bfs target =
         let queue = System.Collections.Generic.Queue<Path>()
         let mutable pathFound = None
@@ -69,3 +83,31 @@ module Day13 =
 
 
     let day13 () = bfs (31, 39)
+
+    let bfs2 () =
+        let queue = System.Collections.Generic.Queue<Path>()
+        let start = (1, 1)
+        let startNode = List.singleton start
+
+        let dists =
+            System.Collections.Generic.Dictionary<int * int, int>()
+
+        dists.[start] <- 0
+        queue.Enqueue(startNode)
+
+        while queue.Count > 0 do
+            let currentNode = queue.Dequeue()
+            let steps = List.length currentNode - 1
+
+            if (steps < 50) then
+                let neighbors = getNeighbours2 currentNode
+
+                for n in neighbors do
+                    if (not (dists.ContainsKey(n))) then
+                        dists.[n] <- steps + 1
+                        let currentNode' = List.append currentNode [ n ]
+                        queue.Enqueue(currentNode')
+
+        dists.Count
+
+    let day13Part2 () = bfs2 ()
