@@ -19,6 +19,19 @@ module Day14 =
         [| for b in hash -> sprintf "%02x" b |]
         |> String.concat ("")
 
+    let hashStretched salt index =
+        let mutable h = hash salt index
+
+        for _ in 1 .. 2016 do
+            let hash =
+                md5.ComputeHash(System.Text.Encoding.ASCII.GetBytes(h))
+
+            h <-
+                [| for b in hash -> sprintf "%02x" b |]
+                |> String.concat ("")
+
+        h
+
     let (|Triple|_|) (h: string) =
         [ 2 .. 31 ]
         |> List.tryPick
@@ -40,13 +53,13 @@ module Day14 =
                 else
                     None)
 
-    let rec iteration (index: int) candidates keyIndexes =
+    let rec iteration hashF (index: int) candidates keyIndexes =
         let indexWindowStart = index - 1000
 
         let validCandidates =
             List.filter (fun c -> c.Index >= indexWindowStart) candidates
 
-        let h = hash Input index
+        let h = hashF Input index
 
         let candidates', keys' =
             match h with
@@ -72,6 +85,9 @@ module Day14 =
         if keyIndexes.Length >= 64 then
             keyIndexes.[63]
         else
-            iteration (index + 1) candidates' keys'
+            iteration hashF (index + 1) candidates' keys'
 
-    let day14 () = iteration 0 List.empty List.empty
+    let day14 () = iteration hash 0 List.empty List.empty
+
+    let day14Part2 () =
+        iteration hashStretched 0 List.empty List.empty
