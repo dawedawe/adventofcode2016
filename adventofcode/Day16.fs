@@ -2,7 +2,7 @@ namespace Adventofcode2016
 
 module Day16 =
 
-    let Input = ("01000100010010111", 272)
+    let Input = "01000100010010111"
 
     let comp c = if c = '1' then '0' else '1'
 
@@ -32,5 +32,7 @@ module Day16 =
             System.String(reduction)
 
     let day16 () =
-        expand ((fst Input).ToCharArray()) (snd Input)
-        |> checksum
+        expand (Input.ToCharArray()) 272 |> checksum
+
+    let day16Part2 () =
+        expand (Input.ToCharArray()) 35651584 |> checksum
