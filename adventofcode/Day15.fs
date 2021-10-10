@@ -40,3 +40,12 @@ module Day15 =
         |> System.IO.File.ReadAllLines
         |> Array.map parseLine
         |> iterate 0
+
+    let day15Part2 () =
+        Input
+        |> System.IO.File.ReadAllLines
+        |> Array.map parseLine
+        |> Array.append [| { Number = 7
+                             Positions = 11
+                             StartPos = 0 } |]
+        |> iterate 0
