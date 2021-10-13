@@ -4,6 +4,8 @@ module Day17 =
 
     let Input = "mmsxrhfx"
 
+    let goal = (3, 3)
+
     type Node = { Path: string; Pos: int * int }
 
     let md5 =
@@ -49,18 +51,15 @@ module Day17 =
         | "R" -> (x + 1, y)
         | _ -> failwith "bad direction"
 
-    let bfs () =
-        let goal = (3, 3)
+    let bfs whilePred conditionF =
         let queue = System.Collections.Generic.Queue<Node>()
         let mutable pathFound = None
         queue.Enqueue({ Path = ""; Pos = (0, 0) })
 
-        while queue.Count > 0 && Option.isNone pathFound do
+        while queue.Count > 0 && whilePred pathFound do
             let node = queue.Dequeue()
 
-            if node.Pos = goal then
-                pathFound <- Some node.Path
-            else
+            if node.Pos <> goal then
                 let dirs =
                     hash Input node.Path
                     |> getDoorStates
@@ -72,9 +71,23 @@ module Day17 =
                     let newNode = { Path = newPath; Pos = newPos }
                     queue.Enqueue(newNode)
 
+            else if conditionF node pathFound then
+                pathFound <- Some node.Path
+
         if Option.isSome pathFound then
             pathFound.Value
         else
             failwith "no path found"
 
-    let day17 () = bfs ()
+    let day17 () = bfs Option.isNone (fun _ _ -> true)
+
+    let part2F node (pathFound: string option) =
+        let length =
+            pathFound
+            |> Option.map String.length
+            |> Option.defaultValue 0
+
+        node.Path.Length > length
+
+    let day17Part2 () =
+        bfs (fun _ -> true) part2F |> String.length
