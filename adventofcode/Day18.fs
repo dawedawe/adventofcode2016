@@ -29,7 +29,7 @@ module Day18 =
 
     let countSafeTiles rowCount line =
         let rec helper rowsLeft previousRow safeTiles =
-            if rowsLeft = 0 then
+            if rowsLeft = 1 then
                 safeTiles
             else
                 let nextRow =
@@ -55,4 +55,9 @@ module Day18 =
     let day18 () =
         Input
         |> System.IO.File.ReadAllText
-        |> countSafeTiles 39
+        |> countSafeTiles 40
+
+    let day18Part2 () =
+        Input
+        |> System.IO.File.ReadAllText
+        |> countSafeTiles 400000
