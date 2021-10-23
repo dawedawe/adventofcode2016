@@ -1,5 +1,19 @@
 namespace Adventofcode2016
 
+module List =
+
+    let rec permutations =
+        function
+        | [] -> seq [ List.empty ]
+        | x :: xs -> Seq.collect (insertions x) (permutations xs)
+
+    and insertions x =
+        function
+        | [] -> [ [ x ] ]
+        | (y :: ys) as xs ->
+            (x :: xs)
+            :: (List.map (fun x -> y :: x) (insertions x ys))
+
 module Day21 =
 
     open System
@@ -109,3 +123,28 @@ module Day21 =
         |> Array.map parseLine
         |> scramble ("abcdefgh".ToCharArray())
         |> String
+
+    let password = "fbgdceah"
+
+    let rec f inputs operations =
+        match inputs with
+        | [] -> failwith "not found"
+        | x :: xs ->
+            let xScrambled = scramble x operations
+            if String xScrambled = password then
+                String x
+            else
+                f xs operations
+
+    let day21Part2 () =
+        let operations =
+            InputFile
+            |> System.IO.File.ReadAllLines
+            |> Array.map parseLine
+        let inputs =
+            password.ToCharArray()
+            |> List.ofArray
+            |> List.permutations
+            |> Seq.map Array.ofList
+            |> Seq.toList
+        f inputs operations
