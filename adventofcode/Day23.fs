@@ -15,6 +15,7 @@ module Day23 =
         | Dec of char
         | Jnz of RegOrVal * RegOrVal
         | Tgl of char
+        | Mul of char * char * char
 
     type Register =
         { Name: char
@@ -32,39 +33,49 @@ module Day23 =
                    ('c', 0)
                    ('d', 0) |]
                 |> Map.ofArray }
+        static member CreatePart2() =
+            { Ip = 0
+              Registers =
+                [| ('a', 12)
+                   ('b', 0)
+                   ('c', 0)
+                   ('d', 0) |]
+                |> Map.ofArray }
 
     let parseLine (s: string) =
         let parts = s.Split(' ')
         let part0 = parts.[0]
         let part1 = parts.[1]
-        let part2 = if parts.Length = 3 then Some parts.[2] else None
-        match part0, part1, part2 with
-        | "cpy", x, Some y when System.Char.IsLetter x.[0] -> Inst.Cpy(Reg x.[0], Reg y.[0])
-        | "cpy", x, Some y -> Inst.Cpy(Val(int x), Reg y.[0])
-        | "inc", x, None -> Inst.Inc x.[0]
-        | "dec", x, None -> Inst.Dec x.[0]
-        | "jnz", x, Some y when
+        let part2 = if parts.Length >= 3 then Some parts.[2] else None
+        let part3 = if parts.Length = 4 then Some parts.[3] else None
+        match part0, part1, part2, part3 with
+        | "cpy", x, Some y, None when System.Char.IsLetter x.[0] -> Inst.Cpy(Reg x.[0], Reg y.[0])
+        | "cpy", x, Some y, None -> Inst.Cpy(Val(int x), Reg y.[0])
+        | "inc", x, None, None -> Inst.Inc x.[0]
+        | "dec", x, None, None -> Inst.Dec x.[0]
+        | "jnz", x, Some y, None when
             System.Char.IsLetter x.[0]
             && System.Char.IsLetter y.[0]
             ->
             Inst.Jnz(Reg x.[0], Reg y.[0])
-        | "jnz", x, Some y when
+        | "jnz", x, Some y, None when
             System.Char.IsLetter x.[0]
             && not (System.Char.IsLetter y.[0])
             ->
             Inst.Jnz(Reg x.[0], Val(int y))
-        | "jnz", x, Some y when
+        | "jnz", x, Some y, None when
             not (System.Char.IsLetter x.[0])
             && System.Char.IsLetter y.[0]
             ->
             Inst.Jnz(Val(int x), Reg y.[0])
-        | "jnz", x, Some y when
+        | "jnz", x, Some y, None when
             not (System.Char.IsLetter x.[0])
             && not (System.Char.IsLetter y.[0])
             ->
             Inst.Jnz(Val(int x), Val(int y))
-        | "tgl", x, None -> Inst.Tgl x.[0]
-        | _ -> failwith "unkown instruction"
+        | "tgl", x, None, None -> Inst.Tgl x.[0]
+        | "mul", a, Some b, Some c -> Inst.Mul(a.[0], b.[0], c.[0])
+        | _ -> failwith $"unkown instruction: {part0}"
 
     let toggle idx prog =
         if idx < 0 || idx >= Array.length prog then
@@ -77,6 +88,7 @@ module Day23 =
                 | Tgl r -> Inc r
                 | Jnz (rv1, rv2) -> Cpy(rv1, rv2)
                 | Cpy (rv1, rv2) -> Jnz(rv1, rv2)
+                | Mul (a, b, c) -> Mul(a, b, c)
             prog.[idx] <- instr
             prog
 
@@ -140,6 +152,13 @@ module Day23 =
             let idx = comp.Ip + x
             let prog' = toggle idx prog
             prog', { comp with Ip = comp.Ip + 1 }
+        | Mul (a, b, c) ->
+            let prod = comp.Registers.[b] * comp.Registers.[c]
+            let regs = comp.Registers |> Map.add a prod
+            prog,
+            { comp with
+                Ip = comp.Ip + 1
+                Registers = regs }
 
     let rec run ((prog, comp): (Inst [] * Computer)) =
         if comp.Ip >= prog.Length then
@@ -153,4 +172,12 @@ module Day23 =
             |> System.IO.File.ReadAllLines
             |> Array.map parseLine
         let comp = run (prog, (Computer.Create()))
+        comp.Registers.['a']
+
+    let day23Part2 () =
+        let prog =
+            InputFile
+            |> System.IO.File.ReadAllLines
+            |> Array.map parseLine
+        let comp = run (prog, (Computer.CreatePart2()))
         comp.Registers.['a']
