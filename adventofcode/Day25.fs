@@ -1,0 +1,191 @@
+namespace Adventofcode2016
+
+module Day25 =
+
+    [<Literal>]
+    let InputFile = "Day25Input.txt"
+
+    type RegOrVal =
+        | Reg of char
+        | Val of int
+
+    type Inst =
+        | Cpy of RegOrVal * RegOrVal
+        | Inc of char
+        | Dec of char
+        | Jnz of RegOrVal * RegOrVal
+        | Tgl of char
+        | Mul of char * char * char
+        | Out of RegOrVal
+
+    type Register =
+        { Name: char
+          Value: int }
+        static member Create name = { Name = name; Value = 0 }
+
+    type Computer =
+        { Ip: int
+          Registers: Map<char, int>
+          Output: int list }
+        static member Create(a) =
+            { Ip = 0
+              Registers =
+                [| ('a', a)
+                   ('b', 0)
+                   ('c', 0)
+                   ('d', 0) |]
+                |> Map.ofArray
+              Output = List.empty }
+
+    let parseLine (s: string) =
+        let parts = s.Split(' ')
+        let part0 = parts.[0]
+        let part1 = parts.[1]
+        let part2 = if parts.Length >= 3 then Some parts.[2] else None
+        let part3 = if parts.Length = 4 then Some parts.[3] else None
+        match part0, part1, part2, part3 with
+        | "cpy", x, Some y, None when System.Char.IsLetter x.[0] -> Inst.Cpy(Reg x.[0], Reg y.[0])
+        | "cpy", x, Some y, None -> Inst.Cpy(Val(int x), Reg y.[0])
+        | "inc", x, None, None -> Inst.Inc x.[0]
+        | "dec", x, None, None -> Inst.Dec x.[0]
+        | "jnz", x, Some y, None when
+            System.Char.IsLetter x.[0]
+            && System.Char.IsLetter y.[0]
+            ->
+            Inst.Jnz(Reg x.[0], Reg y.[0])
+        | "jnz", x, Some y, None when
+            System.Char.IsLetter x.[0]
+            && not (System.Char.IsLetter y.[0])
+            ->
+            Inst.Jnz(Reg x.[0], Val(int y))
+        | "jnz", x, Some y, None when
+            not (System.Char.IsLetter x.[0])
+            && System.Char.IsLetter y.[0]
+            ->
+            Inst.Jnz(Val(int x), Reg y.[0])
+        | "jnz", x, Some y, None when
+            not (System.Char.IsLetter x.[0])
+            && not (System.Char.IsLetter y.[0])
+            ->
+            Inst.Jnz(Val(int x), Val(int y))
+        | "tgl", x, None, None -> Inst.Tgl x.[0]
+        | "mul", a, Some b, Some c -> Inst.Mul(a.[0], b.[0], c.[0])
+        | "out", x, None, None when System.Char.IsLetter x.[0] -> Inst.Out(Reg x.[0])
+        | "out", x, None, None when not (System.Char.IsLetter x.[0]) -> Inst.Out(Val(int x.[0]))
+        | _ -> failwith $"unkown instruction: {part0}"
+
+    let toggle idx prog =
+        if idx < 0 || idx >= Array.length prog then
+            prog
+        else
+            let instr =
+                match prog.[idx] with
+                | Inc c -> Dec c
+                | Dec c -> Inc c
+                | Tgl r -> Inc r
+                | Jnz (rv1, rv2) -> Cpy(rv1, rv2)
+                | Cpy (rv1, rv2) -> Jnz(rv1, rv2)
+                | Mul (a, b, c) -> Mul(a, b, c)
+                | Out x -> Out x
+            prog.[idx] <- instr
+            prog
+
+    let execute ((prog, comp): (Inst [] * Computer)) =
+        match prog.[comp.Ip] with
+        | Cpy (Reg r1, Reg r2) ->
+            let regs = comp.Registers |> Map.add r2 comp.Registers.[r1]
+            prog,
+            { comp with
+                Ip = comp.Ip + 1
+                Registers = regs }
+        | Cpy (Val x, Reg r2) ->
+            let regs = comp.Registers |> Map.add r2 x
+            prog,
+            { comp with
+                Ip = comp.Ip + 1
+                Registers = regs }
+        | Cpy (_, Val _) -> prog, { comp with Ip = comp.Ip + 1 }
+        | Inc r ->
+            let regs =
+                comp.Registers
+                |> Map.add r (comp.Registers.[r] + 1)
+            prog,
+            { comp with
+                Ip = comp.Ip + 1
+                Registers = regs }
+        | Dec r ->
+            let regs =
+                comp.Registers
+                |> Map.add r (comp.Registers.[r] - 1)
+            prog,
+            { comp with
+                Ip = comp.Ip + 1
+                Registers = regs }
+        | Jnz (Reg r1, Reg r2) ->
+            let ip =
+                if comp.Registers.[r1] <> 0 then
+                    comp.Ip + comp.Registers.[r2]
+                else
+                    comp.Ip + 1
+            prog, { comp with Ip = ip }
+        | Jnz (Val x, Reg r2) ->
+            let ip =
+                if x <> 0 then
+                    comp.Ip + comp.Registers.[r2]
+                else
+                    comp.Ip + 1
+            prog, { comp with Ip = ip }
+        | Jnz (Reg r1, Val v) ->
+            let ip =
+                if comp.Registers.[r1] <> 0 then
+                    comp.Ip + v
+                else
+                    comp.Ip + 1
+            prog, { comp with Ip = ip }
+        | Jnz (Val x, Val v) ->
+            let ip = if x <> 0 then comp.Ip + v else comp.Ip + 1
+            prog, { comp with Ip = ip }
+        | Tgl r ->
+            let x = comp.Registers.[r]
+            let idx = comp.Ip + x
+            let prog' = toggle idx prog
+            prog', { comp with Ip = comp.Ip + 1 }
+        | Mul (a, b, c) ->
+            let prod = comp.Registers.[b] * comp.Registers.[c]
+            let regs = comp.Registers |> Map.add a prod
+            prog,
+            { comp with
+                Ip = comp.Ip + 1
+                Registers = regs }
+        | Out (Reg r) ->
+            prog,
+            { comp with
+                Ip = comp.Ip + 1
+                Output = List.append comp.Output [ comp.Registers.[r] ] }
+        | Out (Val v) ->
+            prog,
+            { comp with
+                Ip = comp.Ip + 1
+                Output = List.append comp.Output [ v ] }
+
+    let rec run ((prog, comp): (Inst [] * Computer)) =
+        if comp.Output.Length = 8 then
+            comp
+        else
+            execute (prog, comp) |> run
+
+    let findInit prog =
+        let rec helper a =
+            let comp = Computer.Create(a)
+            let comp' = run (prog, comp)
+            if (comp'.Output = [ 0; 1; 0; 1; 0; 1; 0; 1 ]) then
+                a
+            else
+                helper (a + 1)
+        helper 0
+
+    let day25 () =
+        InputFile
+        |> System.IO.File.ReadAllLines
+        |> Array.map parseLine
+        |> findInit
