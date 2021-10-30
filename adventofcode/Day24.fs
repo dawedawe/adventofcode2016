@@ -141,3 +141,74 @@ module Day24 =
             }
             |> Seq.toList
         bfs2 distances positions.Length
+
+    let addBackTo0 currentNode distances =
+        let backway =
+            distances
+            |> List.filter (fun d -> d.V1 = currentNode.Current && d.V2 = '0')
+            |> List.head
+        { currentNode with
+            Current = '0'
+            Path = List.append currentNode.Path [ (backway.V1, backway.V2) ]
+            Distance = currentNode.Distance + backway.Distance }
+
+    let bfs2Part2 distances toVisit =
+        let mutable candidate: Node option = None
+        let queue = System.Collections.Generic.Queue<Node>()
+        let start =
+            { Current = '0'
+              Path = List.empty
+              Distance = 0
+              Visited = Set.singleton '0' }
+        queue.Enqueue(start)
+
+        while queue.Count > 0 do
+            let currentNode = queue.Peek()
+
+            if currentNode.Visited.Count = toVisit then
+                let currentNode' = addBackTo0 currentNode distances
+                if Option.isNone candidate
+                   || candidate.Value.Distance > currentNode'.Distance then
+                    candidate <- Some currentNode'
+                queue.Dequeue() |> ignore
+            else
+                let currentBest =
+                    match candidate with
+                    | Some c -> c.Distance
+                    | None -> System.Int32.MaxValue
+                queue.Dequeue() |> ignore
+                let neighbors = getNextPossibleStates currentNode distances
+                for n in neighbors do
+                    let successorNode =
+                        { currentNode with
+                            Current = n.V2
+                            Path = List.append currentNode.Path [ (currentNode.Current, n.V2) ]
+                            Distance = currentNode.Distance + n.Distance
+                            Visited = Set.add n.V2 currentNode.Visited }
+                    if successorNode.Distance < currentBest then
+                        queue.Enqueue(successorNode)
+
+        match candidate with
+        | Some c -> c.Distance
+        | None -> failwith "no path found"
+
+    let day24Part2 () =
+        let map = InputFile |> System.IO.File.ReadAllLines
+        let positions = getPositions map
+        let pairs = getAllPairs positions
+        let distances =
+            seq {
+                for pair in pairs do
+                    let (sourceX, sourceY), (targetX, targetY) = pair |> Set.toList |> fun l -> l.[0], l.[1]
+                    let path = bfs map (sourceX, sourceY) (targetX, targetY)
+                    yield
+                        { V1 = map.[sourceY].[sourceX]
+                          V2 = map.[targetY].[targetX]
+                          Distance = path }
+                    yield
+                        { V2 = map.[sourceY].[sourceX]
+                          V1 = map.[targetY].[targetX]
+                          Distance = path }
+            }
+            |> Seq.toList
+        bfs2Part2 distances positions.Length
